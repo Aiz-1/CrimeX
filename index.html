@@ -1,0 +1,837 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Crime Investigation System</title>
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+  <link href="https://fonts.googleapis.com/css2?family=Share+Tech+Mono&family=Barlow:wght@300;400;600;700&display=swap"
+    rel="stylesheet" />
+  <link rel="stylesheet" href="style.css" />
+</head>
+
+<body>
+
+  <div id="loginScreen">
+    <div class="login-box">
+      <div class="login-logo">
+        <div class="classified">// classified</div>
+        <h1>CRIME<span>.</span><br>INVESTIGATION</h1>
+        <p>AUTHORIZED PERSONNEL ONLY</p>
+      </div>
+
+      <hr class="login-divider">
+
+      <div class="login-error" id="loginError"></div>
+
+      <div class="login-field">
+        <label>Email</label>
+        <input type="email" id="loginEmail" placeholder="Enter your email" />
+      </div>
+
+      <div class="login-field">
+        <label>Password</label>
+        <input type="password" id="loginPassword" placeholder="Enter your password" />
+      </div>
+
+      <button class="login-btn" id="loginBtn" onclick="signIn()">SIGN IN</button>
+
+      <div class="login-footer">
+        System Access Monitored and Logged
+      </div>
+    </div>
+  </div>
+
+  <div id="appShell" style="display: none;">
+    <aside class="sidebar">
+      <div class="sidebar-logo">
+        <div class="badge">// classified</div>
+        <h1>CRIME<span>.</span><br>INVESTIGATION</h1>
+      </div>
+      <nav class="sidebar-nav">
+        <div class="nav-section">Main</div>
+        <div class="nav-item active" onclick="navigate('dashboard')">Dashboard</div>
+
+        <div class="nav-section">Records</div>
+        <div class="nav-item" onclick="navigate('cases')">Cases</div>
+        <div class="nav-item" onclick="navigate('crimes')">Crimes</div>
+        <div class="nav-item" onclick="navigate('suspects')">Suspects</div>
+        <div class="nav-item" onclick="navigate('victims')">Victims</div>
+        <div class="nav-item" onclick="navigate('evidence')">Evidence</div>
+
+        <div class="nav-section">Setup</div>
+        <div class="nav-item" onclick="navigate('officers')">Officers</div>
+        <div class="nav-item" onclick="navigate('locations')">Locations</div>
+
+        <div class="nav-section">Reports & Admin</div>
+        <div class="nav-item" onclick="navigate('reports')">Reports</div>
+        <div class="nav-item admin-only" onclick="navigate('users')">Users</div>
+      </nav>
+      <div class="sidebar-footer">
+        <span class="status-dot"></span>DB CONNECTED
+      </div>
+    </aside>
+
+    <main class="main">
+      <div class="topbar">
+        <div class="topbar-title">SYSTEM // <span id="currentPageTitle">DASHBOARD</span></div>
+        <div class="topbar-right" style="display: flex; gap: 20px; align-items: center;">
+          <div id="topbarDate"></div>
+          <div id="topbarRight"></div>
+        </div>
+      </div>
+
+      <div class="content">
+
+        <div class="page active" id="page-dashboard">
+          <div class="page-header">
+            <div>
+              <h2>Operational <span>Dashboard</span></h2>
+              <p>// real-time overview of all active investigations</p>
+            </div>
+            <button class="btn btn-ghost btn-sm" onclick="loadDashboard()">&#8635; Refresh</button>
+          </div>
+
+          <div class="stats-grid" id="statsGrid">
+            <div class="stat-card">
+              <div class="label">Total Cases</div>
+              <div class="number" id="statCases">&mdash;</div>
+              <div class="sub">All time</div>
+            </div>
+            <div class="stat-card">
+              <div class="label">Open Cases</div>
+              <div class="number" id="statOpen">&mdash;</div>
+              <div class="sub">Active investigations</div>
+            </div>
+            <div class="stat-card">
+              <div class="label">Suspects</div>
+              <div class="number" id="statSuspects">&mdash;</div>
+              <div class="sub">In database</div>
+            </div>
+            <div class="stat-card">
+              <div class="label">Crimes</div>
+              <div class="number" id="statCrimes">&mdash;</div>
+              <div class="sub">Recorded</div>
+            </div>
+            <div class="stat-card">
+              <div class="label">Evidence</div>
+              <div class="number" id="statEvidence">&mdash;</div>
+              <div class="sub">Items collected</div>
+            </div>
+            <div class="stat-card">
+              <div class="label">Officers</div>
+              <div class="number" id="statOfficers">&mdash;</div>
+              <div class="sub">Active staff</div>
+            </div>
+          </div>
+
+          <div class="charts-grid">
+            <div class="chart-card">
+              <h3>// Cases by Status</h3>
+              <canvas id="chartStatus" height="200"></canvas>
+            </div>
+            <div class="chart-card">
+              <h3>// Crimes by Type</h3>
+              <canvas id="chartCrimes" height="200"></canvas>
+            </div>
+          </div>
+
+          <div class="table-card">
+            <div class="table-card-header">
+              <h3>Recent Cases</h3>
+            </div>
+            <table>
+              <thead>
+                <tr>
+                  <th>Case ID</th>
+                  <th>Title</th>
+                  <th>Status</th>
+                  <th>Date Opened</th>
+                  <th>Officer</th>
+                </tr>
+              </thead>
+              <tbody id="recentCasesBody">
+                <tr>
+                  <td colspan="5" class="loading">LOADING...</td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+
+        <div class="page" id="page-cases">
+          <div class="page-header">
+            <div>
+              <h2>Case <span>Management</span></h2>
+              <p>// all investigations and their current status</p>
+            </div>
+            <button class="btn btn-primary admin-only" onclick="openModal('modalCase')">+ New Case</button>
+          </div>
+          <div class="search-bar">
+            <input type="text" id="searchCases" placeholder="Search cases..."
+              oninput="filterTable('casesBody', this.value)" />
+            <select id="filterStatus" onchange="loadCases()"
+              style="background:var(--bg3);border:1px solid var(--border);border-radius:4px;padding:8px 12px;color:var(--text);font-size:13px;outline:none;">
+              <option value="">All Statuses</option>
+              <option value="Open">Open</option>
+              <option value="Under Review">Under Review</option>
+              <option value="Closed">Closed</option>
+            </select>
+          </div>
+          <div class="table-card">
+            <table>
+              <thead>
+                <tr>
+                  <th>ID</th>
+                  <th>Title</th>
+                  <th>Status</th>
+                  <th>Date Opened</th>
+                  <th>Officer</th>
+                  <th>Actions</th>
+                </tr>
+              </thead>
+              <tbody id="casesBody">
+                <tr>
+                  <td colspan="6" class="loading">LOADING...</td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+
+        <div class="page" id="page-crimes">
+          <div class="page-header">
+            <div>
+              <h2>Crime <span>Records</span></h2>
+              <p>// all logged criminal incidents</p>
+            </div>
+            <button class="btn btn-primary admin-only" onclick="openModal('modalCrime')">+ New Crime</button>
+          </div>
+          <div class="table-card">
+            <table>
+              <thead>
+                <tr>
+                  <th>ID</th>
+                  <th>Type</th>
+                  <th>Description</th>
+                  <th>Date</th>
+                  <th>Location</th>
+                  <th>Actions</th>
+                </tr>
+              </thead>
+              <tbody id="crimesBody">
+                <tr>
+                  <td colspan="6" class="loading">LOADING...</td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+
+        <div class="page" id="page-suspects">
+          <div class="page-header">
+            <div>
+              <h2>Suspect <span>Profiles</span></h2>
+              <p>// persons of interest and case linkages</p>
+            </div>
+            <button class="btn btn-primary admin-only" onclick="openModal('modalSuspect')">+ New Suspect</button>
+          </div>
+          <div class="search-bar">
+            <input type="text" placeholder="Search suspects..." oninput="filterTable('suspectsBody', this.value)" />
+          </div>
+          <div class="table-card">
+            <table>
+              <thead>
+                <tr>
+                  <th>ID</th>
+                  <th>Name</th>
+                  <th>Gender</th>
+                  <th>DOB</th>
+                  <th>Phone</th>
+                  <th>Cases</th>
+                  <th>Actions</th>
+                </tr>
+              </thead>
+              <tbody id="suspectsBody">
+                <tr>
+                  <td colspan="7" class="loading">LOADING...</td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+
+        <div class="page" id="page-victims">
+          <div class="page-header">
+            <div>
+              <h2>Victim <span>Records</span></h2>
+              <p>// all registered victims</p>
+            </div>
+            <button class="btn btn-primary admin-only" onclick="openModal('modalVictim')">+ New Victim</button>
+          </div>
+          <div class="table-card">
+            <table>
+              <thead>
+                <tr>
+                  <th>ID</th>
+                  <th>Name</th>
+                  <th>Gender</th>
+                  <th>DOB</th>
+                  <th>Contact</th>
+                  <th>Actions</th>
+                </tr>
+              </thead>
+              <tbody id="victimsBody">
+                <tr>
+                  <td colspan="6" class="loading">LOADING...</td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+
+        <div class="page" id="page-evidence">
+          <div class="page-header">
+            <div>
+              <h2>Evidence <span>Locker</span></h2>
+              <p>// all collected evidence items</p>
+            </div>
+            <button class="btn btn-primary admin-only" onclick="openModal('modalEvidence')">+ Add Evidence</button>
+          </div>
+          <div class="table-card">
+            <table>
+              <thead>
+                <tr>
+                  <th>ID</th>
+                  <th>Type</th>
+                  <th>Description</th>
+                  <th>Date Collected</th>
+                  <th>Case</th>
+                  <th>Actions</th>
+                </tr>
+              </thead>
+              <tbody id="evidenceBody">
+                <tr>
+                  <td colspan="6" class="loading">LOADING...</td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+
+        <div class="page" id="page-officers">
+          <div class="page-header">
+            <div>
+              <h2>Officer <span>Registry</span></h2>
+              <p>// all registered investigators and staff</p>
+            </div>
+            <button class="btn btn-primary admin-only" onclick="openModal('modalOfficer')">+ New Officer</button>
+          </div>
+          <div class="table-card">
+            <table>
+              <thead>
+                <tr>
+                  <th>ID</th>
+                  <th>Name</th>
+                  <th>Rank</th>
+                  <th>Badge No.</th>
+                  <th>Department</th>
+                  <th>Actions</th>
+                </tr>
+              </thead>
+              <tbody id="officersBody">
+                <tr>
+                  <td colspan="6" class="loading">LOADING...</td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+
+        <div class="page" id="page-locations">
+          <div class="page-header">
+            <div>
+              <h2>Location <span>Database</span></h2>
+              <p>// all registered crime locations</p>
+            </div>
+            <button class="btn btn-primary admin-only" onclick="openModal('modalLocation')">+ New Location</button>
+          </div>
+          <div class="table-card">
+            <table>
+              <thead>
+                <tr>
+                  <th>ID</th>
+                  <th>Address</th>
+                  <th>City</th>
+                  <th>District</th>
+                  <th>Postal Code</th>
+                  <th>Actions</th>
+                </tr>
+              </thead>
+              <tbody id="locationsBody">
+                <tr>
+                  <td colspan="6" class="loading">LOADING...</td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+
+        <div class="page" id="page-reports">
+          <div class="page-header">
+            <div>
+              <h2>Investigation <span>Reports</span></h2>
+              <p>// complex query results and analytics</p>
+            </div>
+          </div>
+          <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-bottom:24px;">
+            <button class="btn btn-ghost" onclick="runReport('open_cases')">&#9654; Open Cases (VIEW)</button>
+            <button class="btn btn-ghost" onclick="runReport('repeat_suspects')">&#9654; Repeat Suspects (VIEW)</button>
+            <button class="btn btn-ghost" onclick="runReport('case_summary')">&#9654; Case Summary (VIEW)</button>
+            <button class="btn btn-ghost" onclick="runReport('case_logs')">&#9654; Case Activity Logs</button>
+          </div>
+          <div class="table-card" id="reportResult">
+            <div class="empty-state">SELECT A REPORT TO RUN</div>
+          </div>
+        </div>
+
+        <div class="page admin-only" id="page-users">
+          <div class="page-header">
+            <div>
+              <h2>User <span>Management</span></h2>
+              <p>// system access and role control</p>
+            </div>
+            <button class="btn btn-primary admin-only" onclick="openModal('modalAddUser')">+ New User</button>
+          </div>
+          <div class="table-card">
+            <table>
+              <thead>
+                <tr>
+                  <th>Email</th>
+                  <th>Role</th>
+                  <th>Actions</th>
+                </tr>
+              </thead>
+              <tbody id="usersBody">
+                <tr>
+                  <td colspan="3" class="loading">LOADING...</td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+
+      </div>
+    </main>
+  </div>
+  <div class="toast" id="toast"></div>
+
+  <div class="modal-overlay" id="modalCase">
+    <div class="modal">
+      <button class="modal-close" onclick="closeModal('modalCase')">&#10005;</button>
+      <h3>// New Case</h3>
+
+      <div class="modal-section-label">Case Details</div>
+      <div class="form-grid">
+        <div class="form-group span-2">
+          <label>Case Title</label>
+          <input type="text" id="caseTitle" placeholder="e.g. Downtown robbery investigation" />
+        </div>
+        <div class="form-group">
+          <label>Status</label>
+          <select id="caseStatus">
+            <option>Open</option>
+            <option>Under Review</option>
+            <option>Closed</option>
+          </select>
+        </div>
+        <div class="form-group">
+          <label>Assigned Officer</label>
+          <select id="caseOfficer">
+            <option value="">Select officer...</option>
+          </select>
+        </div>
+      </div>
+
+      <button class="btn-collapse admin-only" id="crimeToggleBtn" onclick="toggleCrimeSection()">
+        <span id="crimeToggleIcon">+</span> Add Crime Details <span
+          style="font-size:10px;opacity:0.6;">(optional)</span>
+      </button>
+      <div id="caseCrimeSection" style="display:none;">
+        <div class="modal-section-label" style="margin-top:0;">Crime Details</div>
+        <div class="form-grid">
+          <div class="form-group">
+            <label>Crime Type</label>
+            <input type="text" id="caseCrimeType" placeholder="e.g. Robbery, Fraud" />
+          </div>
+          <div class="form-group">
+            <label>Date Occurred</label>
+            <input type="date" id="caseCrimeDate" />
+          </div>
+          <div class="form-group span-2">
+            <label style="display:flex;align-items:center;justify-content:space-between;">
+              Location
+              <button type="button"
+                onclick="populateSelect('caseCrimeLocation','locations','location_id','city',r=>`${r.address}, ${r.city}`)"
+                style="background:none;border:none;color:var(--text-dim);cursor:pointer;font-size:12px;padding:0;font-family:var(--mono);"
+                title="Refresh locations">&#8635; Refresh</button>
+            </label>
+            <select id="caseCrimeLocation">
+              <option value="">Select location...</option>
+            </select>
+          </div>
+        </div>
+
+        <button class="btn-collapse" id="caseNewLocToggleBtn" onclick="toggleCaseNewLocation()" style="margin-top:8px;">
+          <span id="caseNewLocToggleIcon">+</span> Add New Location <span style="font-size:10px;opacity:0.6;">(if not listed
+            above)</span>
+        </button>
+        <div id="caseNewLocationSection" style="display:none; margin-top:16px;">
+          <div class="modal-section-label" style="margin-top:0;">New Location Details</div>
+          <div class="form-grid">
+            <div class="form-group span-2">
+              <label>Address</label>
+              <input type="text" id="caseNewLocAddress" placeholder="Street address" />
+            </div>
+            <div class="form-group">
+              <label>City</label>
+              <input type="text" id="caseNewLocCity" placeholder="e.g. Karachi" />
+            </div>
+            <div class="form-group">
+              <label>District</label>
+              <input type="text" id="caseNewLocDistrict" placeholder="e.g. South" />
+            </div>
+            <div class="form-group">
+              <label>Postal Code</label>
+              <input type="text" id="caseNewLocPostal" placeholder="e.g. 74200" />
+            </div>
+          </div>
+        </div>
+
+        <div class="form-grid" style="margin-top:16px;">
+          <div class="form-group span-2">
+            <label>Description</label>
+            <textarea id="caseCrimeDesc" placeholder="Describe the crime incident..."></textarea>
+          </div>
+        </div>
+      </div>
+
+      <div class="modal-actions admin-only">
+        <button class="btn btn-ghost" onclick="closeModal('modalCase')">Cancel</button>
+        <button class="btn btn-primary" onclick="addCase()">Create Case</button>
+      </div>
+    </div>
+  </div>
+
+  <div class="modal-overlay" id="modalCrime">
+    <div class="modal">
+      <button class="modal-close" onclick="closeModal('modalCrime')">&#10005;</button>
+      <h3>// New Crime</h3>
+      <div class="form-grid">
+        <div class="form-group">
+          <label>Crime Type</label>
+          <input type="text" id="crimeType" placeholder="e.g. Robbery, Murder, Fraud" />
+        </div>
+        <div class="form-group">
+          <label>Date Occurred</label>
+          <input type="date" id="crimeDate" />
+        </div>
+        <div class="form-group span-2">
+          <label style="display:flex;align-items:center;justify-content:space-between;">
+            Location
+            <button type="button"
+              onclick="populateSelect('crimeLocation','locations','location_id','city',r=>`${r.address}, ${r.city}`)"
+              style="background:none;border:none;color:var(--text-dim);cursor:pointer;font-size:12px;padding:0;font-family:var(--mono);"
+              title="Refresh locations">&#8635; Refresh</button>
+          </label>
+          <select id="crimeLocation">
+            <option value="">Select location...</option>
+          </select>
+        </div>
+      </div>
+
+      <button class="btn-collapse" id="newLocToggleBtn" onclick="toggleNewLocation()">
+        <span id="newLocToggleIcon">+</span> Add New Location <span style="font-size:10px;opacity:0.6;">(if not listed
+          above)</span>
+      </button>
+      <div id="newLocationSection" style="display:none;">
+        <div class="modal-section-label" style="margin-top:0;">New Location Details</div>
+        <div class="form-grid">
+          <div class="form-group span-2">
+            <label>Address</label>
+            <input type="text" id="newLocAddress" placeholder="Street address" />
+          </div>
+          <div class="form-group">
+            <label>City</label>
+            <input type="text" id="newLocCity" placeholder="e.g. Karachi" />
+          </div>
+          <div class="form-group">
+            <label>District</label>
+            <input type="text" id="newLocDistrict" placeholder="e.g. South" />
+          </div>
+          <div class="form-group">
+            <label>Postal Code</label>
+            <input type="text" id="newLocPostal" placeholder="e.g. 74200" />
+          </div>
+        </div>
+      </div>
+
+      <div class="form-grid" style="margin-top:16px;">
+        <div class="form-group span-2">
+          <label>Description</label>
+          <textarea id="crimeDesc" placeholder="Describe the crime..."></textarea>
+        </div>
+      </div>
+      <div class="modal-actions admin-only">
+        <button class="btn btn-ghost" onclick="closeModal('modalCrime')">Cancel</button>
+        <button class="btn btn-primary" onclick="addCrime()">Add Crime</button>
+      </div>
+    </div>
+  </div>
+
+  <div class="modal-overlay" id="modalSuspect">
+    <div class="modal">
+      <button class="modal-close" onclick="closeModal('modalSuspect')">&#10005;</button>
+      <h3>// New Suspect</h3>
+
+      <div class="modal-section-label">Personal Details</div>
+      <div class="form-grid">
+        <div class="form-group span-2">
+          <label>Full Name</label>
+          <input type="text" id="suspectName" placeholder="Full name" />
+        </div>
+        <div class="form-group">
+          <label>Date of Birth</label>
+          <input type="date" id="suspectDob" />
+        </div>
+        <div class="form-group">
+          <label>Gender</label>
+          <select id="suspectGender">
+            <option value="">Select...</option>
+            <option>Male</option>
+            <option>Female</option>
+            <option>Other</option>
+          </select>
+        </div>
+        <div class="form-group">
+          <label>Phone</label>
+          <input type="text" id="suspectPhone" placeholder="+92-..." />
+        </div>
+        <div class="form-group span-2">
+          <label>Address</label>
+          <input type="text" id="suspectAddress" placeholder="Current address" />
+        </div>
+      </div>
+
+      <div class="modal-section-label">Case Linking <span
+          style="font-weight:400;letter-spacing:0;text-transform:none;font-size:10px;">(optional)</span></div>
+      <div class="form-grid">
+        <div class="form-group span-2">
+          <label>Linked Case</label>
+          <select id="suspectLinkedCase">
+            <option value="">No case — add later</option>
+          </select>
+        </div>
+        <div class="form-group span-2">
+          <label>Role</label>
+          <select id="suspectRole">
+            <option value="Primary Suspect">Primary Suspect</option>
+            <option value="Accomplice">Accomplice</option>
+            <option value="Witness">Witness</option>
+            <option value="Person of Interest">Person of Interest</option>
+          </select>
+        </div>
+      </div>
+
+      <div class="modal-actions admin-only">
+        <button class="btn btn-ghost" onclick="closeModal('modalSuspect')">Cancel</button>
+        <button class="btn btn-primary" onclick="addSuspect()">Add Suspect</button>
+      </div>
+    </div>
+  </div>
+
+  <div class="modal-overlay" id="modalVictim">
+    <div class="modal">
+      <button class="modal-close" onclick="closeModal('modalVictim')">&#10005;</button>
+      <h3>// New Victim</h3>
+      <div class="form-grid">
+        <div class="form-group span-2">
+          <label>Full Name</label>
+          <input type="text" id="victimName" placeholder="Full name" />
+        </div>
+        <div class="form-group">
+          <label>Date of Birth</label>
+          <input type="date" id="victimDob" />
+        </div>
+        <div class="form-group">
+          <label>Gender</label>
+          <select id="victimGender">
+            <option value="">Select...</option>
+            <option>Male</option>
+            <option>Female</option>
+            <option>Other</option>
+          </select>
+        </div>
+        <div class="form-group span-2">
+          <label>Contact Info</label>
+          <input type="text" id="victimContact" placeholder="Phone or email" />
+        </div>
+      </div>
+      <div class="modal-section-label">Case Linking <span
+          style="font-weight:400;letter-spacing:0;text-transform:none;font-size:10px;">(optional)</span></div>
+      <div class="form-grid">
+        <div class="form-group span-2">
+          <label>Linked Case</label>
+          <select id="victimCase">
+            <option value="">No case &#8212; add later</option>
+          </select>
+        </div>
+      </div>
+      <div class="modal-actions admin-only">
+        <button class="btn btn-ghost" onclick="closeModal('modalVictim')">Cancel</button>
+        <button class="btn btn-primary" onclick="addVictim()">Add Victim</button>
+      </div>
+    </div>
+  </div>
+
+  <div class="modal-overlay" id="modalEvidence">
+    <div class="modal">
+      <button class="modal-close" onclick="closeModal('modalEvidence')">&#10005;</button>
+      <h3>// Add Evidence</h3>
+      <div class="form-grid">
+        <div class="form-group">
+          <label>Evidence Type</label>
+          <input type="text" id="evidenceType" placeholder="e.g. Weapon, Document, DNA" />
+        </div>
+        <div class="form-group">
+          <label>Date Collected</label>
+          <input type="date" id="evidenceDate" />
+        </div>
+        <div class="form-group span-2">
+          <label>Linked Case</label>
+          <select id="evidenceCase">
+            <option value="">Select case...</option>
+          </select>
+        </div>
+        <div class="form-group span-2">
+          <label>Description</label>
+          <textarea id="evidenceDesc" placeholder="Describe the evidence..."></textarea>
+        </div>
+      </div>
+      <div class="modal-actions admin-only">
+        <button class="btn btn-ghost" onclick="closeModal('modalEvidence')">Cancel</button>
+        <button class="btn btn-primary" onclick="addEvidence()">Add Evidence</button>
+      </div>
+    </div>
+  </div>
+
+  <div class="modal-overlay" id="modalOfficer">
+    <div class="modal">
+      <button class="modal-close" onclick="closeModal('modalOfficer')">&#10005;</button>
+      <h3>// New Officer</h3>
+      <div class="form-grid">
+        <div class="form-group span-2">
+          <label>Full Name</label>
+          <input type="text" id="officerName" placeholder="Officer's full name" />
+        </div>
+        <div class="form-group">
+          <label>Rank</label>
+          <input type="text" id="officerRank" placeholder="e.g. Inspector, DSP" />
+        </div>
+        <div class="form-group">
+          <label>Badge Number</label>
+          <input type="text" id="officerBadge" placeholder="e.g. B-1042" />
+        </div>
+        <div class="form-group span-2">
+          <label>Department</label>
+          <select id="officerDept">
+            <option value="">Select department...</option>
+          </select>
+        </div>
+      </div>
+      <div class="modal-actions admin-only">
+        <button class="btn btn-ghost" onclick="closeModal('modalOfficer')">Cancel</button>
+        <button class="btn btn-primary" onclick="addOfficer()">Add Officer</button>
+      </div>
+    </div>
+  </div>
+
+  <div class="modal-overlay" id="modalLocation">
+    <div class="modal">
+      <button class="modal-close" onclick="closeModal('modalLocation')">&#10005;</button>
+      <h3>// New Location</h3>
+      <div class="form-grid">
+        <div class="form-group span-2">
+          <label>Address</label>
+          <input type="text" id="locationAddress" placeholder="Street address" />
+        </div>
+        <div class="form-group">
+          <label>City</label>
+          <input type="text" id="locationCity" placeholder="e.g. Karachi" />
+        </div>
+        <div class="form-group">
+          <label>District</label>
+          <input type="text" id="locationDistrict" placeholder="e.g. South" />
+        </div>
+        <div class="form-group">
+          <label>Postal Code</label>
+          <input type="text" id="locationPostal" placeholder="e.g. 74200" />
+        </div>
+      </div>
+      <div class="modal-actions admin-only">
+        <button class="btn btn-ghost" onclick="closeModal('modalLocation')">Cancel</button>
+        <button class="btn btn-primary" onclick="addLocation()">Add Location</button>
+      </div>
+    </div>
+  </div>
+
+  <div class="modal-overlay" id="modalEdit">
+    <div class="modal">
+      <button class="modal-close" onclick="closeModal('modalEdit')">&#10005;</button>
+      <h3>Edit Record</h3>
+      <div class="form-grid" id="editFormFields"></div>
+      <div class="modal-actions admin-only">
+        <button class="btn btn-ghost" onclick="closeModal('modalEdit')">Cancel</button>
+        <button class="btn btn-primary" onclick="saveEdit()">Save Changes</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Add User Modal -->
+  <div class="modal-overlay" id="modalAddUser">
+    <div class="modal">
+      <button class="modal-close" onclick="closeModal('modalAddUser')">✕</button>
+      <h3>// New User</h3>
+      <div class="form-grid">
+        <div class="form-group span-2">
+          <label>Email</label>
+          <input type="email" id="newUserEmail" placeholder="user@example.com" />
+        </div>
+        <div class="form-group span-2">
+          <label>Temporary Password</label>
+          <input type="text" id="newUserPassword" placeholder="Generate secure password" />
+        </div>
+        <div class="form-group span-2">
+          <label>Role</label>
+          <select id="newUserRole">
+            <option value="viewer">Viewer (Read Only)</option>
+            <option value="admin">Admin (Full Access)</option>
+          </select>
+        </div>
+      </div>
+      <div class="modal-actions">
+        <button class="btn btn-ghost" onclick="closeModal('modalAddUser')">Cancel</button>
+        <button class="btn btn-primary" onclick="addNewUser()">Create User</button>
+      </div>
+    </div>
+  </div>
+
+  <script src="supabase.js"></script>
+  <script src="auth.js"></script>
+  <script src="ui.js"></script>
+  <script src="app.js"></script>
+</body>
+
+</html>
